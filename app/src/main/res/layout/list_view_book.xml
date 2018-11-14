@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="?android:selectableItemBackground"
+>
+    <ImageView
+            android:id="@+id/imgThumbnail"
+            android:layout_height="48dp"
+            android:layout_width="48dp"
+            android:layout_gravity="center_vertical"
+            app:srcCompat="@drawable/ic_book_open_variant"
+            android:tint="@android:color/black"
+            android:scaleType="center"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="16dp"
+
+    />
+    <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="8dp"
+    >
+        <TextView
+                android:id="@+id/txtTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:duplicateParentState="true"
+                android:layout_gravity="center_vertical"
+                android:ellipsize="end"
+                android:lines="1"
+                tools:text="Wrox PRess"
+        />
+
+        <TextView
+                android:id="@+id/txtAuthor"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:duplicateParentState="true"
+                android:layout_gravity="center_vertical"
+                android:ellipsize="end"
+                android:lines="1"
+                tools:text="Kenny Goers"
+        />
+    </LinearLayout>
+    <CheckBox
+            android:id="@+id/selected"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="right|center_vertical"
+            android:layout_marginEnd="8dp"
+            android:visibility="gone"
+    />
+</LinearLayout>
