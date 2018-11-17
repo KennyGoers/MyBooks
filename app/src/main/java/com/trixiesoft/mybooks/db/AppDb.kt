@@ -6,7 +6,7 @@ import io.reactivex.Flowable
 
 @Database(
     entities = [ Book::class ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 
@@ -25,8 +25,11 @@ abstract class AppDatabase : RoomDatabase() {
         @Query("SELECT * FROM book")
         abstract fun getBooks(): List<Book>
 
-        @Query("SELECT * FROM book")
+        @Query("SELECT * FROM book ORDER BY read ASC, title ASC")
         abstract fun getAllBooksFlowable(): Flowable<List<Book>>
+
+        @Query("UPDATE book SET read = :isRead WHERE id = :id")
+        abstract fun setBookReadFlag(id: String, isRead: Boolean)
     }
 
     abstract val dao: AppDao

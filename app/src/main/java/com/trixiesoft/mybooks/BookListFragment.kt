@@ -1,35 +1,43 @@
 package com.trixiesoft.mybooks
 
+import android.annotation.SuppressLint
+import android.app.Activity.RESULT_OK
 import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.drawable.Drawable
 import androidx.fragment.app.Fragment
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
-import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.trixiesoft.mybooks.api.Book
-import com.trixiesoft.mybooks.api.BookAPI
-import com.trixiesoft.mybooks.api.BookResult
+import com.squareup.picasso.Picasso
+import com.trixiesoft.mybooks.api.*
 import com.trixiesoft.mybooks.utils.bindView
+import io.reactivex.Observable
+import io.reactivex.ObservableOnSubscribe
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import io.reactivex.functions.BiFunction
 import io.reactivex.schedulers.Schedulers
+import java.util.concurrent.TimeUnit
 
 /**
  * A placeholder fragment containing a simple view.
  */
 class BookListFragment : Fragment() {
-
     fun View.hideSoftKeyboard() {
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(windowToken, 0)
@@ -44,7 +52,12 @@ class BookListFragment : Fragment() {
     private val clearButton: View by bindView(R.id.clearButton)
     private val searchEditText: EditText by bindView(R.id.searchEditText)
     private val searchEditOverlay: View by bindView(R.id.searchEditOverlay)
+    private val busy: ProgressBar by bindView(R.id.busy)
 
+
+    var editTextDisposable: Disposable? = null
+
+    @SuppressLint("RxDefaultScheduler")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -58,21 +71,32 @@ class BookListFragment : Fragment() {
             searchEditText.setText("")
             recyclerView.adapter = BookAdapter(mutableListOf())
         }
-        searchEditText.addTextChangedListener(object: TextWatcher {
-            override fun afterTextChanged(p0: Editable?) {
-            }
-            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-            }
-            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
-                val searchText = p0?.toString()
-                if (searchText.isNullOrEmpty()) {
-                    clearButton.visibility = View.GONE
-                } else {
-                    clearButton.visibility = View.VISIBLE
-                    onSearch(searchText)
+
+        // set up a debounce on text input such that we minimize the queries while typing
+        editTextDisposable = Observable.create(ObservableOnSubscribe<String> { subscriber ->
+            searchEditText.addTextChangedListener(object: TextWatcher {
+                override fun afterTextChanged(p0: Editable?) {
+                    val searchText = p0?.toString()
+                    if (searchText.isNullOrEmpty()) {
+                        clearButton.visibility = View.GONE
+                    } else {
+                        clearButton.visibility = View.VISIBLE
+                    }
+                    subscriber.onNext(searchText!!)
                 }
-            }
-        })
+                override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+                }
+                override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+                }})
+            })
+            .map { text -> text.toLowerCase().trim() }
+            .debounce(500, TimeUnit.MILLISECONDS)
+            .distinct()
+            //.filter { text -> text.isNotBlank() }
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe ({text -> onSearch(text)}, {error -> showError(error)} )
+
+        // if the user starts interacting with the list, hide the keyboard
         recyclerView.onTouched = object: TouchyRecyclerView.OnTouched {
             override fun onTouched() {
                 // close the keyboard
@@ -81,6 +105,11 @@ class BookListFragment : Fragment() {
                 searchEditOverlay.requestFocus()
             }
         }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        editTextDisposable?.dispose()
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -97,11 +126,16 @@ class BookListFragment : Fragment() {
     }
 
     private fun onSearch(searchText: String) {
+        disposable?.dispose()
+        disposable = null
         if (searchText.length <= 1) {
+            Log.i("onSearch", "Cancel Search")
+            busy.visibility = View.GONE
             recyclerView.adapter = BookAdapter(mutableListOf())
             return
         }
-        disposable?.dispose()
+        Log.i("onSearch", "Search -> $searchText")
+        busy.visibility = View.VISIBLE
         disposable = Single.zip(
             BookAPI.instance.searchBooksByTitle(searchText),
             BookAPI.instance.searchBooksByAuthor(searchText),
@@ -110,28 +144,42 @@ class BookListFragment : Fragment() {
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(
-                { result -> updateList(result); disposable = null },
-                { error -> showError(error); disposable = null }
+                { result ->
+                    busy.visibility = View.GONE
+                    updateList(result)
+                    disposable = null
+                },
+                { error ->
+                    busy.visibility = View.GONE
+                    showError(error)
+                    disposable = null
+                }
             )
     }
 
-    fun showError(error: Throwable) {
+    private fun selectBook(book: Book) {
+        activity?.setResult(RESULT_OK, Intent().putExtra("book", book))
+        activity?.finish()
     }
 
-    fun updateList(books: List<Book>) {
+    private fun showError(error: Throwable) {
+        // Yes, it is a NOOP for now :/
+    }
+
+    private fun updateList(books: List<Book>) {
         (recyclerView.adapter as BookAdapter).updateList(books)
     }
 
-    class BookDiff(val newList: List<Book>, val oldList: List<Book>): DiffUtil.Callback() {
+    class BookDiff(private val newList: List<Book>, private val oldList: List<Book>): DiffUtil.Callback() {
         override fun areItemsTheSame(old: Int, new: Int): Boolean  = oldList[old] == newList[new]
         override fun getOldListSize(): Int = oldList.size
         override fun getNewListSize(): Int = newList.size
         override fun areContentsTheSame(old: Int, new: Int) = oldList[old] == newList[new]
     }
 
-    inner class BookAdapter(var bookList: List<Book>) : RecyclerView.Adapter<BookViewHolder>() {
+    inner class BookAdapter(private var bookList: List<Book>) : RecyclerView.Adapter<BookViewHolder>() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BookViewHolder {
-            return BookViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.list_view_book, parent, false))
+            return BookViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.list_item_book, parent, false))
         }
 
         override fun getItemCount(): Int {
@@ -155,9 +203,26 @@ class BookListFragment : Fragment() {
 
         val title: TextView by bindView(R.id.txtTitle)
         val author: TextView by bindView(R.id.txtAuthor)
+        val image: ImageView by bindView(R.id.imgThumbnail)
+        val target: com.squareup.picasso.Target
 
         init {
             itemView.setOnClickListener {
+                this@BookListFragment.selectBook(book!!)
+            }
+            target = object: com.squareup.picasso.Target {
+                override fun onPrepareLoad(placeHolderDrawable: Drawable) {
+                    image.scaleType = ImageView.ScaleType.CENTER
+                    image.setImageDrawable(placeHolderDrawable)
+                }
+                override fun onBitmapLoaded(bitmap: Bitmap, from: Picasso.LoadedFrom) {
+                    image.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    image.setImageBitmap(bitmap)
+                }
+                override fun onBitmapFailed(e: Exception, errorDrawable: Drawable) {
+                    image.scaleType = ImageView.ScaleType.CENTER
+                    image.setImageResource(R.drawable.ic_book)
+                }
             }
         }
 
@@ -165,9 +230,17 @@ class BookListFragment : Fragment() {
             this.book = book
             title.text = book.title
             if (book.authorName.isNullOrEmpty())
-                author.text = "Unknown"
+                author.text = getString(R.string.unknown)
             else
                 author.text = book.authorName.first()
+            val url = book.getCoverUrlMedium()
+            if (url != null)
+                Picasso.get()
+                    .load(url)
+                    .error(R.drawable.ic_book)
+                    .into(image)
+            else
+                image.setImageResource(R.drawable.ic_book)
         }
     }
 }
