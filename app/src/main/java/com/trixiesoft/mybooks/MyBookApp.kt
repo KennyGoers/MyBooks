@@ -4,7 +4,6 @@ import android.app.Application
 import com.squareup.picasso.Picasso
 
 class MyBookApp : Application() {
-
     override fun onCreate() {
         super.onCreate()
 

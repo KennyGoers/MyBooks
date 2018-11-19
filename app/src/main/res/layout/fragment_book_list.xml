@@ -18,5 +18,45 @@
         app:layout_constraintTop_toTopOf="parent"
         tools:listitem="@layout/list_item_book"
         />
+    <LinearLayout
+        android:id="@+id/emptyView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:orientation="vertical"
+        android:layout_gravity="bottom"
+        android:paddingBottom="100dp"
+        android:visibility="gone"
+        >
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="72dp"
+            android:src="@drawable/ic_book"
+            android:scaleType="fitCenter"
+        />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="You are new here, welcome!"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6"
+            android:gravity="center_horizontal"
+        />
+        <TextView
+                android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Add a book to get started!"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
+            android:gravity="center"
+        />
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_arrow_down_bold_outline"
+            android:scaleType="fitCenter"
+        />
+    </LinearLayout>
 
 </FrameLayout>

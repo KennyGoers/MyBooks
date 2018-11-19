@@ -8,6 +8,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentPagerAdapter
 import androidx.viewpager.widget.ViewPager
+import com.google.android.material.bottomappbar.BottomAppBar
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.tabs.TabLayout
 import com.trixiesoft.mybooks.R
@@ -27,12 +28,14 @@ class MainActivity : AppCompatActivity(), FindBookFragment.FindBookInterface {
     private val progress: ProgressBar by bindView(R.id.progress)
     private val tabLayout: TabLayout by bindView(R.id.tab_layout)
     private val viewPager: ViewPager by bindView(R.id.view_pager)
+    private val bottomBar: BottomAppBar by bindView(R.id.bottom_app_bar)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         addButton.setOnClickListener {
-            openFind()
+            val findFrag = supportFragmentManager.findFragmentByTag("find_book")
+            if (findFrag != null && findFrag.isVisible) closeFind() else openFind()
         }
 
         val adapter = TabAdapter(supportFragmentManager)
@@ -67,6 +70,8 @@ class MainActivity : AppCompatActivity(), FindBookFragment.FindBookInterface {
                 .add(R.id.find_book_fragment, fragment, "find_book")
                 .commitNow()
         }
+        bottomBar.fabAlignmentMode = BottomAppBar.FAB_ALIGNMENT_MODE_END
+        addButton.setImageResource(R.drawable.ic_close)
     }
 
     override fun bookFound(book: Book) {
@@ -82,6 +87,8 @@ class MainActivity : AppCompatActivity(), FindBookFragment.FindBookInterface {
                 .hide(findFragment)
                 .commitNow()
         }
+        bottomBar.fabAlignmentMode = BottomAppBar.FAB_ALIGNMENT_MODE_CENTER
+        addButton.setImageResource(R.drawable.ic_book_add)
     }
 
     override fun cancelFind() {

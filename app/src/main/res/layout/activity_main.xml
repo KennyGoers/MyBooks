@@ -35,6 +35,7 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toTopOf="@+id/view_pager"
                 app:layout_constraintVertical_chainStyle="packed"
+                android:elevation="4dp"
             />
 
             <androidx.viewpager.widget.ViewPager

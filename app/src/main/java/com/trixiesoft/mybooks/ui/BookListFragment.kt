@@ -4,10 +4,7 @@ import android.annotation.SuppressLint
 import android.content.DialogInterface
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
-import androidx.lifecycle.ViewModelProviders
 import android.os.Bundle
-import android.util.Log
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,20 +13,18 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.view.menu.MenuBuilder
 import androidx.appcompat.widget.PopupMenu
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.squareup.picasso.Picasso
-
 import com.trixiesoft.mybooks.R
-import com.trixiesoft.mybooks.db.AppDatabase
 import com.trixiesoft.mybooks.db.Book
 import com.trixiesoft.mybooks.db.Data
 import com.trixiesoft.mybooks.db.getCoverUrlMedium
 import com.trixiesoft.mybooks.utils.bindView
-import io.reactivex.Completable
 import io.reactivex.CompletableObserver
-import io.reactivex.Flowable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.annotations.NonNull
 import io.reactivex.disposables.Disposable
@@ -39,6 +34,7 @@ import io.reactivex.subscribers.DisposableSubscriber
 class BookListFragment : Fragment() {
 
     val recyclerView: RecyclerView by bindView(R.id.recyclerView)
+    val emptyView: View by bindView(R.id.emptyView)
 
     companion object {
         fun newInstance(read: Boolean): Fragment {
@@ -52,10 +48,7 @@ class BookListFragment : Fragment() {
 
     private lateinit var viewModel: BookListViewModel
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_book_list, container, false)
     }
 
@@ -65,36 +58,46 @@ class BookListFragment : Fragment() {
         super.onActivityCreated(savedInstanceState)
         viewModel = ViewModelProviders.of(this).get(BookListViewModel::class.java)
 
-        val dao = AppDatabase.getDatabase(context!!)?.dao ?: return
-        val getFlowable: Flowable<List<Book>> = if (arguments!!.getBoolean("read", false))
-            dao.getReadBooksFlowable() else dao.getUnreadBooksFlowable()
-
-        getDisposable = getFlowable
+        val unread = !arguments!!.getBoolean("read", false)
+        getDisposable = Data.getBooks(context!!, unread)
             .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
             .subscribeOn(io.reactivex.schedulers.Schedulers.io())
             .subscribeWith(object : DisposableSubscriber<List<Book>>() {
                 override fun onNext(books: List<Book>) {
-                    Log.d("MainActivity", "onNext")
                     updateBooks(books)
                 }
                 override fun onError(t: Throwable) {
-                    Log.e("MainActivity", "onError", t)
+                    getDisposable = null
                 }
                 override fun onComplete() {
-                    Log.d("MainActivity", "onComplete")
+                    getDisposable = null
                 }
             })
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         recyclerView.layoutManager = LinearLayoutManager(view.context)
         recyclerView.adapter = BookAdapter(mutableListOf())
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        getDisposable?.dispose()
+        markDisposable?.dispose()
+        deleteDisposable?.dispose()
+    }
+
     fun updateBooks(books: List<Book>) {
-        (recyclerView.adapter as BookAdapter).updateList(books)
+        if (books.isEmpty()) {
+            // empty view
+            emptyView.visibility = View.VISIBLE
+            recyclerView.visibility = View.GONE
+        } else {
+            emptyView.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+            (recyclerView.adapter as BookAdapter).updateList(books)
+        }
     }
 
     class BookDiff(val newList: List<Book>, val oldList: List<Book>): DiffUtil.Callback() {
@@ -138,7 +141,8 @@ class BookListFragment : Fragment() {
             .show()
     }
 
-    var disposable: Disposable? = null
+    var markDisposable: Disposable? = null
+    var deleteDisposable: Disposable? = null
 
     fun markBook(book: Book, bookRead: Boolean) {
         Data.updateBookRead(context!!, book, bookRead)
@@ -146,13 +150,13 @@ class BookListFragment : Fragment() {
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(object : CompletableObserver {
                 override fun onSubscribe(@NonNull d: Disposable) {
-                    disposable = d
+                    markDisposable = d
                 }
                 override fun onComplete() {
-                    disposable = null
+                    markDisposable = null
                 }
                 override fun onError(@NonNull e: Throwable) {
-                    disposable = null
+                    markDisposable = null
                 }
             })
     }
@@ -163,13 +167,13 @@ class BookListFragment : Fragment() {
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(object : CompletableObserver {
                 override fun onSubscribe(@NonNull d: Disposable) {
-                    disposable = d
+                    deleteDisposable = d
                 }
                 override fun onComplete() {
-                    disposable = null
+                    deleteDisposable = null
                 }
                 override fun onError(@NonNull e: Throwable) {
-                    disposable = null
+                    deleteDisposable = null
                 }
             })
     }
