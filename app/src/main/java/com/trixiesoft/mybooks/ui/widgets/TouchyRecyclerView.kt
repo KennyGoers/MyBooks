@@ -1,4 +1,4 @@
-package com.trixiesoft.mybooks
+package com.trixiesoft.mybooks.ui.widgets
 
 import android.content.Context
 import android.util.AttributeSet

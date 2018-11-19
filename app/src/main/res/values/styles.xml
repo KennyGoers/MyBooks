@@ -15,4 +15,12 @@
         <item name="colorAccent">@color/secondaryColor</item>
     </style>
 
+    <style name="CustomTabLayout" parent="Widget.Design.TabLayout">
+        <item name="tabIndicatorColor">@android:color/white</item>
+        <item name="tabIndicatorHeight">3dp</item>
+        <item name="tabBackground">?attr/selectableItemBackground</item>
+        <item name="tabSelectedTextColor">@android:color/white</item>
+    </style>
+    <!--         <item name="tabTextAppearance">@style/CustomTabTextAppearance</item> -->
+
 </resources>

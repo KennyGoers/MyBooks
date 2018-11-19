@@ -25,6 +25,12 @@ abstract class AppDatabase : RoomDatabase() {
         @Query("SELECT * FROM book")
         abstract fun getBooks(): List<Book>
 
+        @Query("SELECT * FROM book WHERE read ORDER BY title ASC")
+        abstract fun getReadBooksFlowable(): Flowable<List<Book>>
+
+        @Query("SELECT * FROM book WHERE NOT(read) ORDER BY title ASC")
+        abstract fun getUnreadBooksFlowable(): Flowable<List<Book>>
+
         @Query("SELECT * FROM book ORDER BY read ASC, title ASC")
         abstract fun getAllBooksFlowable(): Flowable<List<Book>>
 

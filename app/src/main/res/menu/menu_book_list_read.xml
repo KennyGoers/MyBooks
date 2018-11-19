@@ -1,0 +1,15 @@
+<menu
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    tools:context="com.trixiesoft.mybooks.ui.BookList"
+    >
+    <item
+            android:id="@+id/action_remove"
+            android:title="Remove Book"
+            android:icon="@drawable/ic_book_remove"/>
+    <item
+            android:id="@+id/action_mark_unread"
+            android:title="Mark As Unread"
+            android:icon="@drawable/ic_book_read"/>
+</menu>
