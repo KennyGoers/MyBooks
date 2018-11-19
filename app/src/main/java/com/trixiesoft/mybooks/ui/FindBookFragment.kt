@@ -1,4 +1,4 @@
-package com.trixiesoft.mybooks
+package com.trixiesoft.mybooks.ui
 
 import android.annotation.SuppressLint
 import android.app.Activity.RESULT_OK
@@ -23,8 +23,11 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.squareup.picasso.Picasso
+import com.trixiesoft.mybooks.R
+import com.trixiesoft.mybooks.ui.widgets.TouchyRecyclerView
 import com.trixiesoft.mybooks.api.*
 import com.trixiesoft.mybooks.utils.bindView
+import com.trixiesoft.mybooks.utils.getParent
 import io.reactivex.Observable
 import io.reactivex.ObservableOnSubscribe
 import io.reactivex.Single
@@ -37,14 +40,20 @@ import java.util.concurrent.TimeUnit
 /**
  * A placeholder fragment containing a simple view.
  */
-class BookListFragment : Fragment() {
+class FindBookFragment : Fragment() {
+
+    interface FindBookInterface {
+        fun bookFound(book: com.trixiesoft.mybooks.db.Book)
+        fun cancelFind()
+    }
+
     fun View.hideSoftKeyboard() {
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(windowToken, 0)
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        return inflater.inflate(R.layout.fragment_book_list, container, false)
+        return inflater.inflate(R.layout.fragment_find_books, container, false)
     }
 
     private val recyclerView: TouchyRecyclerView by bindView(R.id.recyclerView)
@@ -65,7 +74,10 @@ class BookListFragment : Fragment() {
         recyclerView.layoutManager = LinearLayoutManager(context)
         recyclerView.adapter = BookAdapter(mutableListOf())
         navigationButton.setOnClickListener {
-            activity?.finish()
+            (getParent() as FindBookInterface).cancelFind()
+            //if (getParent() is FindBookInterface)
+            //    (getParent() as FindBookInterface).cancelFind()
+            //activity?.finish()
         }
         clearButton.setOnClickListener {
             searchEditText.setText("")
@@ -158,8 +170,17 @@ class BookListFragment : Fragment() {
     }
 
     private fun selectBook(book: Book) {
-        activity?.setResult(RESULT_OK, Intent().putExtra("book", book))
-        activity?.finish()
+        val bookData = com.trixiesoft.mybooks.db.Book(
+            book.key,
+            book.coverI,
+            if (book.isbn != null) book.isbn[0] else "",
+            book.title,
+            book.authorName[0],
+            false
+        )
+        (getParent() as FindBookInterface).bookFound(bookData)
+        //activity?.setResult(RESULT_OK, Intent().putExtra("book", book))
+        //activity?.finish()
     }
 
     private fun showError(error: Throwable) {
@@ -208,10 +229,10 @@ class BookListFragment : Fragment() {
 
         init {
             itemView.setOnClickListener {
-                this@BookListFragment.selectBook(book!!)
+                this@FindBookFragment.selectBook(book!!)
             }
             target = object: com.squareup.picasso.Target {
-                override fun onPrepareLoad(placeHolderDrawable: Drawable) {
+                override fun onPrepareLoad(placeHolderDrawable: Drawable?) {
                     image.scaleType = ImageView.ScaleType.CENTER
                     image.setImageDrawable(placeHolderDrawable)
                 }
@@ -219,7 +240,7 @@ class BookListFragment : Fragment() {
                     image.scaleType = ImageView.ScaleType.CENTER_INSIDE
                     image.setImageBitmap(bitmap)
                 }
-                override fun onBitmapFailed(e: Exception, errorDrawable: Drawable) {
+                override fun onBitmapFailed(e: Exception, errorDrawable: Drawable?) {
                     image.scaleType = ImageView.ScaleType.CENTER
                     image.setImageResource(R.drawable.ic_book)
                 }
@@ -238,7 +259,8 @@ class BookListFragment : Fragment() {
                 Picasso.get()
                     .load(url)
                     .error(R.drawable.ic_book)
-                    .into(image)
+                    .placeholder(R.drawable.ic_book)
+                    .into(target)
             else
                 image.setImageResource(R.drawable.ic_book)
         }
